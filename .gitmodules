@@ -1,3 +1,9 @@
 [submodule "Applied Statistics/Trump"]
 	path = Applied Statistics/Trump
 	url = git@github.com:MattScicluna/Trump.git
+[submodule "Applied Statistics/AppliedStatistics"]
+	path = Applied Statistics/AppliedStatistics
+	url = git@github.com:MattScicluna/AppliedStatistics.git
+[submodule "Applied Statistics/STA2201---Methods-of-Applied-Statistics-II"]
+	path = Applied Statistics/STA2201---Methods-of-Applied-Statistics-II
+	url = git@github.com:MattScicluna/STA2201---Methods-of-Applied-Statistics-II.git
