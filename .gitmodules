@@ -1,0 +1,3 @@
+[submodule "Applied Statistics/Trump"]
+	path = Applied Statistics/Trump
+	url = git@github.com:MattScicluna/Trump.git
