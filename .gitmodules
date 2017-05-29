@@ -7,3 +7,6 @@
 [submodule "Applied Statistics/STA2201---Methods-of-Applied-Statistics-II"]
 	path = Applied Statistics/STA2201---Methods-of-Applied-Statistics-II
 	url = git@github.com:MattScicluna/STA2201---Methods-of-Applied-Statistics-II.git
+[submodule "Applied Statistics/STA-2101---Methods-of-Applied-Statistics-I"]
+	path = Applied Statistics/STA-2101---Methods-of-Applied-Statistics-I
+	url = git@github.com:MattScicluna/STA-2101---Methods-of-Applied-Statistics-I.git
