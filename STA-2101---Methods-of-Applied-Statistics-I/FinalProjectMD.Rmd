@@ -1,0 +1,354 @@
+---
+title: "On the Classification of 2016 Republican Presidential Candidates Using Debate
+  Transcripts"
+author: "Matthew Scicluna"
+institution: "University of Toronto Department of Statistical Sciences"
+date: "Wednesday, December 23, 2015"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    fig_caption: true
+fig_width: 10
+fontsize: 11pt
+force_captions: yes
+fig_height: 10
+fig_caption: yes
+---
+
+```{r, echo=FALSE, message=F, warning=F, results="hide"}
+
+pckgs<-c("tm","lsa","ggplot2","caret","reshape","multcomp","knitr","e1071")
+
+func <- function(x){
+  if(!is.element(x, rownames(installed.packages())))
+  {install.packages(x, quiet=TRUE, repos = "http://cran.us.r-project.org")}
+}
+
+lapply(pckgs, func)
+lapply(pckgs, library, character.only=TRUE)
+
+
+set.seed(2015) #Makes research reproducible
+options(show.signif.stars=FALSE) #gets rid of pesky stars!
+
+#Read in the debate transcripts
+TransList <- c(
+".//debates1.txt",
+".//debates2.txt",
+".//debates3.txt",
+".//debates4.txt")
+
+
+Format<-function(Debate)
+{Debate1 <- read.table(Debate, header=F,fill=T, sep="\n",stringsAsFactors=F)
+Text <- Debate1[[1]]
+
+FormatText <- function(MyLine){
+if (grepl("[A-Z]+:", MyLine, ignore.case = FALSE, perl = FALSE)){
+Index <- gregexpr(pattern =':',MyLine)[[1]][1]
+Cand <- substr(MyLine,1,(Index-1))
+Statement <- substr(MyLine,(Index+1),nchar(MyLine))
+return(c(Cand,trimws(Statement)))}
+
+if (!(grepl("[A-Z]+:", MyLine, ignore.case = FALSE, perl = FALSE))){
+Cand <- ""
+Statement <- MyLine
+return(c(Cand,trimws(Statement)))}
+}
+
+Text2 <- sapply(Text,FormatText)
+colnames(Text2)<-rep('',ncol(Text2))
+Text2 <- t(Text2)
+
+#remove first few lines
+Ind <- which(Text2[,1]!='')[1]
+Text2 <- Text2[Ind:nrow(Text2),]
+
+NewVec <- c()
+for (Ind in Text2[,1])
+{if (Ind != "")
+{NewVec <- c(NewVec, Ind)
+LastEnt <- Ind}
+if (Ind == "")
+{NewVec <- c(NewVec, LastEnt)}}
+
+Transcript <- cbind(NewVec,Text2[,2])
+
+Transcript <- Transcript[!grepl("\\([A-Z]+", Transcript[,2], ignore.case = FALSE, perl = FALSE),]
+return(Transcript)}
+
+Transcripts<-sapply(TransList,Format)
+
+#Transcripts have some errors in them, but we are only interested in comparing
+#candidates with a chance of winning, so we restrict our search to:
+
+FrontRunners=c("TRUMP", "CARSON", "RUBIO", "CRUZ", "BUSH") #keep last category as reference category
+n = length(FrontRunners)
+
+KeepFronts <- function(test)
+{
+IND <- test[,1] %in% FrontRunners
+return(test[IND,])}
+
+Transcripts = sapply(Transcripts,KeepFronts)
+
+############################
+####Put data in a corpus####
+############################
+
+AllTranscript <- rbind(Transcripts[[1]],Transcripts[[2]],Transcripts[[3]],Transcripts[[4]])
+Transcript <- AllTranscript[,2]
+Speaker <- AllTranscript[,1]
+
+Transcript = sapply(Transcript, function(row) iconv(row, "latin1", "ASCII", sub=""))
+
+dataset=DataframeSource(data.frame(Transcript))
+mycorpus<-Corpus(dataset, readerControl=list(language="eng", reader=readPlain, encoding = "UTF-8"))
+
+mycorpus <- tm_map(mycorpus, removePunctuation)
+mycorpus <- tm_map(mycorpus, removeNumbers)
+mycorpus <- tm_map(mycorpus, stemDocument)
+stopwordseng=stopwords(kind = "en")
+
+mycorpus <- tm_map(mycorpus, removeWords, stopwordseng)
+mycorpus <- tm_map(mycorpus, content_transformer(tolower))
+TDM=TermDocumentMatrix(mycorpus)
+TDMred=removeSparseTerms(TDM,0.99)
+TDMMat<-as.matrix(TDMred)
+
+######################
+####LSA Classifier####
+######################
+
+LSAOBJ=lsa(TDMMat) #Builds the LSA classifier
+TK=as.matrix(as.data.frame(LSAOBJ[1]))
+DK=as.matrix(as.data.frame(LSAOBJ[2]))
+SK=as.matrix(as.data.frame(LSAOBJ[3]))
+SK=diag(SK[,1])
+TDMred=as.matrix(TDMred) #Coerce into a matrix object, useful for later!
+
+recon=solve(SK)%*%t(TK)%*%TDMred #Build the reconstructed TDM with reduced dimensionality!
+
+FullData <- data.frame(Speaker,t(recon)) #Build the main data structure
+FullData <- FullData[FullData[,2]!=0,] #Get rid of empty statements
+
+########################################
+####Try to classify Cand1 v.s. Cand2####
+########################################
+
+BuildClassifier <- function(Cand1, Cand2)
+{
+FULL1 <- FullData[FullData[,1]==Cand1,]
+FULL2 <- FullData[FullData[,1]==Cand2,]
+Datta <- rbind(FULL1,FULL2)
+Datta[,1] <- factor(Datta[,1],levels=c(Cand1,Cand2))
+contrasts(Datta[,1])
+
+TrainInd <- createDataPartition(Datta[,1], p = .8,
+                                  list = FALSE,
+                                  times = 1)
+
+TrainData <- Datta[TrainInd,]
+TestData <- Datta[-TrainInd,]
+
+Model <- glm(Speaker ~.,family=binomial,data=TrainData)
+preds <- predict(Model, TestData, type="response")
+preds <- round(preds)
+preds<-factor(preds, labels=c(Cand1,Cand2), levels=c(0,1))
+
+Matrix<- confusionMatrix(as.vector(preds),TestData[,1])
+return(list(Model,Matrix))}
+
+```
+
+***
+#Abstract
+
+
+>We collected transcripts from each of the four televised Republican debates and converted the word frequencies of each of the candidates' debate statements into a low dimensional representation using LSA. We then built a classifier which attempted to distinguish statements made by each of the leading presidential candidates to Jeb Bush.  We compared the accuracy of each the classifiers to see which candidate is easiest to distinguish from Bush. We then build a single classifier using the previous classifiers which can determine, given a statement, which candidate most likely said it. We illustrate this technique by providing as a demonstration a function which allows user inputted documents to be visualized in two dimensional latent space along with each of the candidates statements.
+
+
+
+\newpage
+
+#Introduction
+>The 2016 Republican primaries has been covered extensively in the media recently, especially with the addition of celebrity and businessman Donald Trump. The news cycle is full of stories about Trump and other high profile candidates like Governor Jeb Bush, Senators Marco Rubio and Ted Cruz and retired Neurosurgeon Dr. Ben Carson. A recurring story in the press is that the addition of candidates like Trump, who is perceived by many to be lacking substance, is causing the debates to resemble predictable stump speeches rather than spirited arguments. We would like to measure the predictability of candidates' lines in the debates to see if the press is correct in this assertion. While judging statements based on informational content is beyond the scope of this study, we can restrict ourselves to looking at the predictability of each of the candidates speaches? as a proxy for informational content. The more predictable a candidate is, the less informative content they have. We can see the predictability of the candidates based on whether we can predict their speeches accurately using a simple model, which in our case will be logistic regression.
+
+>We compared each of the aforementioned candidates to Bush, since he is seen as the most mainstream establishment candidate. Classifiers were trained for each candidate to distinguish that candidate from bush, thus producing four sets of classifiers. The accuracy of each classifier was compared to see whether they are significantly different, and if so, which ones were the most accurate. Finally, we combined the four classifiers to build a single classifier which can predict which of the five candidates said which debate line.
+
+
+\newpage
+
+#Methods
+>So far debates between the candidates have been relatively common, with long running transcripts freely available online. We collected transcripts for each of the televised Republican debates from the Time magazine website using Python and the Beautiful Soup package. We inputted the data into R and cleaned the transcripts by applying transformations like removing stop words, stemming words, removing case sensitivity, and removing sparse terms. We then built a term document matrix and applied LSA to it. Once this was done we fit a logistic regressions to the lower dimensional representation of the term document matrix to try to classify speeches based on if they were said by each of the candidates or Jeb Bush.
+
+
+```{r, fig.width=6, fig.height=3, fig.align="center", fig.cap="Each of the Candidates Statements in 2D Latent Space", echo=FALSE, message=FALSE, warning=FALSE}
+################################
+####Visualize the Candidates####
+################################
+
+LSAOBJ2=lsa(TDMMat, 2) #Builds a 2D LSA classifier
+TK2=as.matrix(as.data.frame(LSAOBJ2[1]))
+DK2=as.matrix(as.data.frame(LSAOBJ2[2]))
+SK2=as.matrix(as.data.frame(LSAOBJ2[3]))
+SK2=diag(SK2[,1])
+TDMred=as.matrix(TDMred) #Coerce into a matrix object, useful for later!
+
+recon2=solve(SK2)%*%t(TK2)%*%TDMred #Build the reconstructed TDM with reduced dimensionality!
+
+FullData2 <- data.frame(Speaker,t(recon2)) #Build the main data structure
+FullData2 <- FullData2[FullData2[,2]!=0,] #Get rid of empty statements
+
+Candidate=FullData2[,1]
+
+
+qplot(FullData2[,2], FullData2[,3], color=Candidate, xlab='LSA Dim 1', ylab='LSA Dim 2') + ggtitle("LSA of Candidate Speaches") +
+theme(plot.title = element_text(lineheight=.8, face="bold", hjust = 0.5))
+
+
+Dictionary <- names(TDMred[,1]) #All the words featured in the LSA
+
+#What does any point look like?
+#Have fun with this function :)
+
+Visualize<-function(Sentance)
+{repres <- rep(0,nrow(TDMred))
+for (Word in Sentance)
+{if (any(mapply(grepl, Dictionary, Word)))
+{Ind <- which(mapply(grepl, Dictionary, Word))
+repres[Ind]<-1}}
+
+NewRecon <- solve(SK2)%*%t(TK2)%*%repres
+
+new <- data.frame(c("New Point"),t(NewRecon[,1]))
+colnames(new)<-c("Candidate","LSA.Dim.1","LSA.Dim.2")
+colnames(FullData2)<-c("Candidate","LSA.Dim.1","LSA.Dim.2")
+FullerData <- rbind(new,FullData2)
+CustomPoint <- factor(c(1,rep(0,nrow(FullData))), labels=c("Observed Point","Custom Point"))
+FullerData <- cbind(FullerData, CustomPoint )
+colnames(FullerData)<-c("Candidate","LSA.Dim.1","LSA.Dim.2","Custom")
+qplot(LSA.Dim.1, LSA.Dim.2, data=FullerData, alpha=Custom, size=Custom, color=Candidate, xlab='LSA Dim 1', ylab='LSA Dim 2') + ggtitle("LSA of Candidate Speaches") +
+theme(plot.title = element_text(lineheight=.8, face="bold", hjust = 0.5))}
+```
+
+>We illustrate this technique by building a function called _visualize_ which can project the each statement into two LSA dimensions. The user can input their own phrases into the function arguments. Each word in each inputted statement will be compared to each word which appears in any of the debate transcripts. Each partial match will be recorded and the statement will be converted into word counts and then projected into the lower dimensional space, along with the  candidates?? real statements. It is important to note that for our classifier, we are using much more than 2 dimensions in our latent space, so the following should only be seen as a demostration.
+
+
+
+```{r, fig.width=6, fig.height=3, fig.align="center", fig.cap="Visualization Function Demonstration", echo=FALSE, message=FALSE, warning=FALSE}
+Visualize("i am brilliant i have a billion dollars. i am the greatest, tremendous and great")
+```
+
+
+\newpage
+
+#Results
+
+>We trained 30 seperate classifiers using stratified random sampling and leaving out 20% of the statements to be used as a test set each time. The accuracy of each model was recorded along with which candidate the classifier was attempting to distinguish from Bush. It should be noted that the accuracy from each of these classifiers was found to be between 60-80%, which is impresive for a classifier of such simplicity. A one way ANOVA on how much each candidate affected the accuracy of their classifiers was performed and the results can be seen in table 1.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+#########################################
+####Check Accuracy of each Classifier####
+#########################################
+
+k = 30 #number of simulations
+
+CollectData <- matrix(,k,(n-1))
+colnames(CollectData)<-FrontRunners[-n]
+
+for (i in 1:k)
+{MyClassifiers <- lapply(FrontRunners[-n],BuildClassifier, FrontRunners[n]) #using BUSH as reference here!
+Accs <- sapply( seq(1,(n-1)), function(j) return(MyClassifiers[[j]][2][[1]][3][[1]][[1]]) )
+CollectData[i,]<-Accs}
+
+DF = melt(CollectData)[,-1]
+colnames(DF)<-c("Candidate","Accuracy")
+comp = aov(Accuracy~Candidate,DF)
+res <- unlist(residuals(comp))
+
+#Check ANOVA assumptions
+#qqnorm(residuals(comp)) #Errors seem to be normally distributed
+
+RES <- melt(res)
+RES <- cbind(DF[,1], RES)
+colnames(RES)<-c("Candidate","Residual")
+#plot(RES, main="Residuals Vs. Candidate") #Errors seem to be roughly same for each group
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+kable(anova(comp), caption="ANOVA Table", digits=2)
+```
+
+>To figure out which candidates were easier to distinguish from Bush, we did follow-up tests on all pairwise differences, controlling for type 1 error using Tukey HSD procedure. We found that Marco Rubio and Donald Trump had the largest disparity between classifier accuracy. while the other differences were not statistically significant.
+
+\newpage
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+knitr::kable(TukeyHSD(comp)$Candidate, digits=2, caption = "Tukey Controlled Pairwise Comparisons")
+```
+
+>Finally, we see that the combined classifier was not very accurate, as can be seen in table 3. This is surprising since each individual classifier was quite impressive.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+###############################
+####Classify custom phrases####
+###############################
+
+Models = sapply(seq(1,4), function(j) return(MyClassifiers[[j]][1]))
+
+model <- function(recon)
+{preds = predict(Models, recon, type="response")
+preds = as.vector(unlist(preds))
+if (all(preds<0.6))
+{return(FrontRunners[n])}
+output <- FrontRunners[-n] [which(preds==max(preds))]
+if (length(output)>1)
+{output = output[1]}
+return(output)}
+
+ClassifyStatement <- function(Sentance)
+{
+repres <- rep(0,nrow(TDMred))
+for (Word in Sentance)
+{if (any(mapply(grepl, Dictionary, Word)))
+{Ind <- which(mapply(grepl, Dictionary, Word))
+repres[Ind]<-1}}
+
+NewRecon <- solve(SK)%*%t(TK)%*%repres
+NewRecon <- data.frame(t(NewRecon))
+
+return(model(NewRecon))
+}
+
+#test accuracy
+
+prs <- sapply(Transcripts[[1]][,2], ClassifyStatement)
+observed = factor(Transcripts[[1]][,1], levels=c('BUSH', 'CARSON', 'CRUZ', 'RUBIO', 'TRUMP'))
+predicted = factor(prs, levels=c('BUSH', 'CARSON', 'CRUZ', 'RUBIO', 'TRUMP'))
+outpt <- confusionMatrix(predicted, observed)
+
+kable(outpt$table, caption="Confusion Matrix For Overall Classifier. Rows are Predictions, Columns are Reference")
+#outpt$overall[[1]] #Accuracy
+
+
+#ClassifyStatement("i was the governor of florida")
+
+#ClassifyStatement("build a wall and make mexico pay for it")
+
+#not very good accuracy
+```
+
+\newpage
+
+#Discussion and Conclusions
+
+>While the overall classifier was not very accurate, each of the seperate ones were, indicating that we can build a reasonably accurate classifier which can distinguish candidates from Jeb Bush using only word counts. We believe that this can be replicated for the other candidates not considered here. We also believe that if we consider more complex models, such as autoencoders, we can produce even more accurate classifiers.
+
+>There were significant differences in each of the classifiers abilities to classify each of the candidates from Bush. Perhaps not surprisingly the biggest difference in classifier accuracy is between the classifiers of Marco Rubio and Donald Trump. This indicates that the differences between Trump and Bush and Rubio and Bush were the most different. This is not very surprising since Jeb Bush and Marco Rubio are considered to be in the same establishment faction of the GOP, while Donald Trump is considered to be the biggest outsider.
+
+>Future directions include finding better proxys for candidates' informational content, and developing a better overall classifier, perhaps using a neural network with a 5 way softmax output. More advanced techniques in data sampling and modelling should be considered.
+
+>Overall, we do see that candidates are quite easy to distinguish based on their word counts. This misfortunately supports the claims in the media that the debate lines are predictible. While this may lead to bad domestic policy in the United States, at the very least it is interesting to look at with a statistical lens.
+
