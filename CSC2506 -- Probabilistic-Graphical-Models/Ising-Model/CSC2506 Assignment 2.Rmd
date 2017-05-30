@@ -153,7 +153,7 @@ Finally a plot of the $\theta_s$ for each senator can be found in figure 1.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=250pt]{fig1.jpg}
+\includegraphics[width=250pt]{figures/fig1.jpg}
 \caption{Plot of each Senators theta parameter, assuming a fully disconnected graph}
 \end{center}
 \end{figure}
@@ -214,7 +214,7 @@ Using the above gradient objective formulas and the MATLAB optimization package 
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=250pt]{fig2.jpg}
+\includegraphics[width=250pt]{figures/fig2.jpg}
 \caption{Plot negative log-likelihood of fully connected model}
 \end{center}
 \end{figure}
@@ -250,7 +250,7 @@ We used the votes for the first 400 bills as a training set, and the remaining 8
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=400pt]{fig3.jpg}
+\includegraphics[width=400pt]{figures/fig3.jpg}
 \caption{Plot of negative log-likelihood vs Log Value of Theta Bar Hyperparameter}
 \end{center}
 \end{figure}
@@ -264,14 +264,14 @@ It is interesting to note that upon $\ell^1$ regularization, edges are maintaine
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=200pt]{fig4.jpg}
+\includegraphics[width=200pt]{figures/fig4.jpg}
 \caption{Graph which produced the highest validation log-likelihood}
 \end{center}
 \end{figure}
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=200pt]{fig5.jpg}
+\includegraphics[width=200pt]{figures/fig5.jpg}
 \caption{Graph with the smallest number of edges that was nevertheless connected}
 \end{center}
 \end{figure}
