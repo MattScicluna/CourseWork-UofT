@@ -1,4 +1,0 @@
-"0","train.DF <- read.table('Data\spambase.train.txt', header=FALSE, sep="","")
-"
-"2","Error: '\s' is an unrecognized escape in character string starting ""'Data\s""
-"
