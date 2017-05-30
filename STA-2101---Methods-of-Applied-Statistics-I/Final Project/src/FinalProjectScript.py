@@ -6,11 +6,11 @@ import random
 import re
 
 #Initialize text file
-text_file1 = open("debates1.txt", "w")
-text_file2 = open("debates2.txt", "w")
-text_file3 = open("debates3.txt", "w")
-text_file4 = open("debates4.txt", "w")
-text_file5 = open("debates5.txt", "w")
+text_file1 = open("dataset/debates1.txt", "w")
+text_file2 = open("dataset/debates2.txt", "w")
+text_file3 = open("dataset/debates3.txt", "w")
+text_file4 = open("dataset/debates4.txt", "w")
+text_file5 = open("dataset/debates5.txt", "w")
 
 #Get debate 1 transript
 debate1URL = "http://time.com/3988276/republican-debate-primetime-transcript-full-text/"

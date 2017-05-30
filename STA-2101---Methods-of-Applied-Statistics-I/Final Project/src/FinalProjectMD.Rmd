@@ -33,10 +33,10 @@ options(show.signif.stars=FALSE) #gets rid of pesky stars!
 
 #Read in the debate transcripts
 TransList <- c(
-".//debates1.txt",
-".//debates2.txt",
-".//debates3.txt",
-".//debates4.txt")
+"../dataset/debates1.txt",
+"../dataset/debates2.txt",
+"../dataset/debates3.txt",
+"../dataset/debates4.txt")
 
 
 Format<-function(Debate)
