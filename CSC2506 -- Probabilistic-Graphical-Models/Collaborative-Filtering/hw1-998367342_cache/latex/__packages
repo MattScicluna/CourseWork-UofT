@@ -1,0 +1,10 @@
+base
+RevoUtilsMath
+Matrix
+foreach
+glmnet
+lattice
+ggplot2
+caret
+knitr
+reshape2

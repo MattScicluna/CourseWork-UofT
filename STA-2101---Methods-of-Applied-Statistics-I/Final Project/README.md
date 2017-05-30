@@ -1,7 +1,7 @@
 # STA2101 Final Project
 The final project for STA2101 - an applied statistics course.
 
-##Abstract
+## Abstract
 We collected transcripts from each of the four televised Republican debates and converted
 the word frequencies of each of the candidates’ debate statements into a low dimensional
 representation using LSA. We then built a classifier which attempted to distinguish
@@ -12,7 +12,7 @@ given a statement, which candidate most likely said it. We illustrate this techn
 providing as a demonstration a function which allows user inputted documents to be
 visualized in two dimensional latent space along with each of the candidates statements.
 
-##Instructions
+## Instructions
 * Run ```pip install -r requirements.txt``` in terminal
 * Run FinalProjectScript.py to scrape the first 5 Republican primary debate transcripts from the Time Magazine website.
 * Knit FinalProjectMD.Rmd to get a PDF of the final project.
