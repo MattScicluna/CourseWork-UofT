@@ -1,7 +1,10 @@
 # CourseWork
-A repo consisting of the coursework I did as a student at UofT.
 
-## CSC207 - Software Design
+A repo consisting of the coursework I did as a student at UofT. Each course has a corresponding folder, and the correspondance should be clear by the naming. In each of these folders are another set of folders, each containing the seperate projects done for the course. Each of these projects are accompanied by a README file. The README file contains a summary of the project, what I learned, the software used, and how to use the code.
+
+## Course List
+
+### CSC207 - Software Design
 
 Official Course Description
 
@@ -9,7 +12,7 @@ An introduction to software design and development concepts, methods, and tools 
 
 taken from [here](http://calendar.artsci.utoronto.ca/crs_csc.htm)
 
-## CSC2506 - Probabilistic Graphical Models
+### CSC2506 - Probabilistic Graphical Models
 
 Official Course Description
 
@@ -17,7 +20,7 @@ An introduction to probability as a means of representing and reasoning with unc
 
 taken from [here](http://calendar.artsci.utoronto.ca/crs_csc.htm)
 
-## STA2101 - Methods of Applied Statistics 1
+### STA2101 - Methods of Applied Statistics 1
 
 Official Course Description
 
@@ -25,7 +28,7 @@ Advanced topics in statistics and data analysis with emphasis on applications. D
 
 taken from [here](http://calendar.artsci.utoronto.ca/crs_sta.htm)
 
-## STA2201 - Methods of Applied Statistics 2
+### STA2201 - Methods of Applied Statistics 2
 
 Course Description
 
@@ -33,7 +36,7 @@ The course will focus the using and interpreting advanced statistical methods wi
 
 taken from [here](http://pbrown.ca/teaching/astwo/courseInfo.html)
 
-## STA2104 - Statistical Machine Learning
+### STA2104 - Statistical Machine Learning
 
 Official Course Description
 
