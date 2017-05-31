@@ -1,1 +1,25 @@
-STA2201 Coursework. In the first assignment I conducted a simulation study to show that the Likelihood Ratio Statistic was asymptotically Chi Squared, derived some distributions, and analysed the lifetime of some fruit flies. The second assignment involved analysing Math scores and some Cyctic Fibrosis data using a Linear Mixed Model. On the final assignment, I used a Generalised Additive Model to model Carbon levels in Antarctica. Then I analysed moss levels in Galacia using a Generalised Geostatistical Model. Finally I used Integrated Nested Laplacian Approximations to analyse data from the American National Youth Tobacco Survey.
+# STA2201 First Assignment
+
+The first assignment consisted of two sections. In the first part I did the following:
+- I conducted a simulation study to show that the Likelihood Ratio Statistic was asymptotically Chi Squared
+- I derived the parameters of some distributions to yield some chosen moments. The ones which could not be analytically solved were solved using R. I then wrote a report about the effect on Male fruitfly lifespans of forced cohabitation with female Fruitflies.
+- In the second part of the assignment I wrote a report about using the data from the 2014 Youth Tobacco Survey. Some of the main results that I found were:
+	- White people were the most likely to chew tobacco followed by hispanics and black people
+	- Older males living in rural areas had the largest odds of chewing tobacco regularly.
+	- When it came to the odds of people using a Hookah at least once, the difference between men and women were not statistically  different.
+
+
+## Skills Learned
+I learned the following things:
+* To conduct reproducible research using RMarkdown.
+* How to use Gamma Regression.
+* How to use a logistic regression model
+
+## Software Used
+* This project was done in R, the report was rendered into LaTeX using RMarkdown.
+* I used the following R packages:
+	- ggplot2 to generate visually appealing figures
+	- knitr to generate visually appealing tables
+
+## How to Use
+* Run _Assignment 3 Code.R_ to get the results presented in the report.
