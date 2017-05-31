@@ -1,0 +1,26 @@
+
+precToSd = function(x){
+  cbind(
+      sigma=1/sqrt(x[,1]), 
+      dsigma = x[,2] * 2*x[,1]^(3/2)
+  )
+}
+
+priorSdFromPrec = function(priorDens, ...){
+  xSeq = seq(par('usr')[1], par('usr')[2], len=500)
+  precSeq = 1/xSeq^2
+  precToSd(
+    	cbind(precSeq,
+    			priorDens(x=precSeq, ...))
+  )
+}
+
+priorFromLog = function(priorDens, ...){
+  expSeqNA = expSeq = seq(par('usr')[1], par('usr')[2], len=500)
+	expSeqNA[expSeqNA <= 0] = NA 
+  xSeq = log(expSeqNA)
+  cbind(
+    	xExp = expSeq,
+			yExp = priorDens(xSeq, ...)/expSeqNA
+	)
+}
