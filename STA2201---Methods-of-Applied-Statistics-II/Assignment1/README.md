@@ -18,8 +18,10 @@ I learned the following things:
 ## Software Used
 * This project was done in R, the report was rendered into LaTeX using RMarkdown.
 * I used the following R packages:
-	- ggplot2 to generate visually appealing figures
-	- knitr to generate visually appealing tables
+	- ggplot2 to generate visually appealing figures.
+	- knitr to generate visually appealing tables.
+	- nleqslv to solve for the parameters for the distributions with the prespecified moments.
 
 ## How to Use
-* Run _Assignment 3 Code.R_ to get the results presented in the report.
+* Knit A1Code.Rmd to generate the report.
+* A folder  A1Code_files will also be generated. This will hold each of the figures from the report.

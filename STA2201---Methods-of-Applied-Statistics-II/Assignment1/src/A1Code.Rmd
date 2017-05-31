@@ -24,9 +24,17 @@ The coverage probability is quite high, however computing it requires knowing be
 
 options(warn=-1)
 
-set.seed(2015) #to make research reproducible
+pckgs = c("lmtest","knitr", "ggplot2",'nleqslv','faraway')
 
-suppressMessages(library(lmtest))
+func <- function(x){
+  if(!is.element(x, rownames(installed.packages())))
+  {install.packages(x, quiet=TRUE, repos = "http://cran.rstudio.com/")}
+}
+
+lapply(pckgs, func)
+lapply(pckgs, library, character.only=TRUE)
+
+set.seed(2015) #to make research reproducible
 
 make.data.set <- function(a)
 {x = seq(-10, 10, len=40)
@@ -59,7 +67,7 @@ mean(datta[,2]<0.2 & datta[,3]>0.2) #computes Coverage probability
 We now check whether the coefficient for x can be approximated by a Normal distribution centred on 0.2.
 
 ```{r, echo=FALSE,warning=FALSE, fig.cap='Checking if the distribution of the estimates can be fit to a normal distribution', fig.height=3}
-library("ggplot2", quietly=TRUE)
+
 MyData<-data.frame(x = datta[,1])
 std = sd(MyData$x)
 ggplot(MyData, aes(x=x)) + 
@@ -141,7 +149,7 @@ $$f(x;\lambda,k) =
 The mean and vairance for a Weibull distribution is $\lambda \Gamma(1+1/k)$ and $\lambda^2\left(\Gamma\left(1+\frac{2}{k}\right) - \left(\Gamma\left(1+\frac{1}{k}\right)\right)^2\right)$ respectively.
 
 ```{r, echo=FALSE, results='hide', warning=FALSE}
-library('nleqslv')
+
 fn = function(x)
 { lambda = x[1]
   k = x[2]
@@ -290,7 +298,7 @@ We can see that the means and variances are roughly where we would expect them t
 Maybe, according to a dataset from the [Faraday](https://cran.r-project.org/web/packages/faraway/faraway.pdf) package. Fruitflies were forced to cohabilitate with either one or many women, either fertile or pregnant (unwilling to mate). The lifetime (in days) of 125 fruitflies were measured controlling for thorax length (which is known to be correlated with lifespan). The mean lifespan for each group is listed in the following table:
 
 ```{r, echo=FALSE, warning=FALSE}
-library(faraway)
+
 data('fruitfly', package='faraway')
 levels(fruitfly$activity) <- c("Solitary", "1 Preg Fly", "1 Vig Fly", "8 Preg Flies", "8 Vig Flies") #To change the confusing factor levels
 
@@ -348,9 +356,7 @@ Breiman mentions that utilizing cross validation and incorperating averages of d
 #Section 2: Report
 
 ```{r, echo=FALSE}
-
 load("smoke.RData")
-
 Smoke_Hookah_Or <- rep(NA,nrow(smoke))
 
 Smoke_Hookah_Or[!smoke[,145]] <- "Never"
