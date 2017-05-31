@@ -185,14 +185,25 @@ where $V_{ij1}$, $V_{ij2}$ are defined as before.
 We analyzed the $\texttt{MathAchieve}$ dataset from the [MEMSS](https://cran.r-project.org/web/packages/MEMSS/MEMSS.pdf) package. The decision to treat school as a fixed effect would depend on the aim of the study. If we were specifically interested in analyzing the differences in mathematics achievement scores between specific schools, then treating school as a random effect would make sense. Otherwise, if we were interested in just controlling for it, then treating it as a fixed effect would work and would give the weights more leverage in the overall design since random effects suffer from parameter shrinkage.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+pckgs = c("nlme","knitr", "ggplot2",'MEMSS','lmtest')
+
+func <- function(x){
+  if(!is.element(x, rownames(installed.packages())))
+  {install.packages(x, quiet=TRUE, repos = "http://cran.rstudio.com/")}
+}
+
+lapply(pckgs, func)
+lapply(pckgs, library, character.only=TRUE)
+
 data("MathAchieve", package = "MEMSS")
-library(nlme)
+
+
 model1 <- lme(MathAch ~ Minority + Sex + SES, random = ~1 | School, data=MathAchieve)
 
 tab2<-summary(model1$modelStruct)
 tab<-summary(model1)$tTable[,-3]
 tab = round(tab,2)
-require(knitr)
 knitr::kable(tab, caption = "Estimation of fixed effects in linear mixed model of math achievement dataset")
 ```
 
@@ -282,14 +293,12 @@ This model makes the same assumptions as the previous model, but assumes that th
 ###Original Model
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-load("CF.Rdata")
-source("lmeUtils.R.txt")
+load("data/CF.Rdata")
+source("../helpers/lmeUtils.R.txt")
 
 x$ageC = x$AGE - 18
 lmod1<-lme(FEV1 ~ GENDER * F508 * ageC + PSEUDOA, random = ~1 |ID, data = x) #initial model
 lmod1r <-lme(FEV1 ~ GENDER * ageC + F508*GENDER + PSEUDOA, random = ~1 |ID, data = x) #remove gene-age interaction
-
-library(lmtest)
 
 lrt1 <- lrtest(lmod1, lmod1r)
 # Do LRT... profit!
