@@ -1,0 +1,229 @@
+---
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 4
+    keep_tex: yes
+---
+
+---
+title: "Learning Latent Gaussian Models Using INLA Technical Appendix"
+
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{hyperref}
+   - \usepackage {tikz}
+   - \usetikzlibrary{arrows.meta}
+
+date: `r Sys.Date()`
+---
+
+\begin{center}
+\emph{Matthew Scicluna 998367342} \\
+\href{mailto:scicluna@utstat.utoronto.ca}{scicluna@utstat.utoronto.ca}
+\end{center}
+
+We used the following R packages:
+- [INLA](http://www.r-inla.org/) to use INLA.
+- [RandomFields](https://cran.r-project.org/web/packages/RandomFields/RandomFields.pdf) to train Gaussian MRFs.
+
+```{r, warning=FALSE, echo=TRUE, message=FALSE, cache=TRUE}
+require(INLA)
+require(fields)
+require(darch)
+
+######################
+####Load the Data ####
+######################
+
+TrainData <- read.table("../data/traindata.txt",head=F,sep=",")
+TestData <- read.table("../data/testdata.txt",head=F,sep=",")
+
+#Initialize the training data
+Train.Data <- sapply(TrainData[,65], as.numeric)
+X.Train <- sapply(TrainData[,-65], as.numeric)
+
+#Initialize the test data
+Test.Data <- sapply(TestData[,65], as.numeric)
+X.Test <- sapply(TestData[,-65], as.numeric)
+
+#Plot digit function
+PlotDigit<-function(Dig.Rep, row.num){
+  IMG <- matrix(Dig.Rep[row.num,], 8, byrow=F)
+  image(1:ncol(IMG),1:nrow(IMG), IMG[,8:1], col = gray.colors(5), main="", xlab='', ylab='', xaxt='n', yaxt='n')
+}
+
+#Plot these digits
+par(mfrow=c(3,2))
+PlotDigit(X.Train,1)
+PlotDigit(X.Train,2)
+PlotDigit(X.Train,3)
+PlotDigit(X.Train,401)
+PlotDigit(X.Train,402)
+PlotDigit(X.Train,403)
+
+TrainDat <- createDataSet(data=X.Train, targets=Train.Data)
+NN1 <- darch(TrainDat, darch.isBin=TRUE)
+NN1 <- preTrainDArch(NN1, TrainDat, numEpochs = 5, numCD = 1, trainOutputLayer = F)
+NN1 <- fineTuneDArch(NN1, TrainDat, dataSetValid = NULL, numEpochs = 10, bootstrap = T)
+getStats(NN1)
+
+Pred.dat <- round(predict(NN1, newdata = X.Test, type = "raw"))
+mean(Pred.dat!=Test.Data) #Error rate
+
+#########################
+####Modify the 3 Data####
+#########################
+
+y = inla.matrix2vector(X.Train[1:400,])
+node = 1:64
+formula= y ~ 1+ f(node, model="matern2d", nu=1, nrow=8, ncol=8,
+hyper = list(range = list(param =c(1, 1),
+prior = "loggamma",
+initial=1),
+prec = list(param=c(1, 1))))
+
+data=data.frame(y=y,node=node)
+## fit the model
+result=inla(formula, family="gaussian", data=data, verbose=TRUE,
+control.predictor = list(compute = TRUE),
+control.family = list(hyper = list(theta = list(initial = log(1/s.noise^2),
+fixed = FALSE))),
+keep=T)
+
+fitted.data <- matrix(result$summary.fitted.values$mean, nrow=400, ncol=64, byrow=TRUE)
+
+PlotDigit(fitted.data,1)
+
+#Plot these digits
+PlotDigit(matrix(result$summary.random$node$mean,nrow=1),1)
+
+#########################
+####Modify the 5 Data####
+#########################
+
+y2 = inla.matrix2vector(X.Train[401:800,])
+node = 1:64
+formula2= y2 ~ 1+ f(node, model="matern2d", nu=1, nrow=8, ncol=8,
+hyper = list(range = list(param =c(1, 1),
+prior = "loggamma",
+initial=1),
+prec = list(param=c(1, 1))))
+
+data2=data.frame(y=y2,node=node)
+
+## fit the model
+result2=inla(formula2, family="gaussian", data=data, verbose=TRUE,
+control.predictor = list(compute = TRUE),
+control.family = list(hyper = list(theta = list(initial = log(1/s.noise^2),
+fixed = FALSE))),
+keep=T)
+
+fitted.data2 <- matrix(result2$summary.fitted.values$mean, nrow=400, ncol=64, byrow=TRUE)
+
+
+PlotDigit(fitted.data2,44)
+
+#Plot these digits
+PlotDigit(matrix(result2$summary.random$node$mean,nrow=1),1)
+
+off=max(result2$summary.random$node$mean)
+
+
+#Try experiment again!
+X.Train2<-rbind(X.Train[1:400,]*0.5+(fitted.data)*.5, X.Train[401:800,]*.5+(fitted.data2)*.5)
+par(mfrow=c(2,3), mai = c(0.1, 0.1, 0.1, 0.1))
+PlotDigit(X.Train,462)
+PlotDigit(fitted.data2,62)
+PlotDigit(X.Train2,462)
+PlotDigit(X.Train,7)
+PlotDigit(fitted.data,7)
+PlotDigit(X.Train2,7)
+
+ModDatta <- function(alpha)
+{return(rbind(X.Train[1:400,]*(alpha)+(fitted.data)*(1-alpha),
+              X.Train[401:800,]*(alpha)+(fitted.data2)*(1-alpha)))}
+
+
+par(mfrow=c(3,2), mai = c(0.1, 0.1, 0.1, 0.1))
+PlotDigit(ModDatta(0),33)
+title(main  = "Alpha = 0")
+PlotDigit(ModDatta(0.2),33)
+title(main = "Alpha = 0.2")
+PlotDigit(ModDatta(0.4),33)
+title(main = "Alpha = 0.4")
+PlotDigit(ModDatta(0.6),33)
+title(main = "Alpha = 0.6")
+PlotDigit(ModDatta(0.8),33)
+title(main = "Alpha = 0.8")
+PlotDigit(ModDatta(1),33)
+title(main = "Alpha = 1")
+
+##############################################
+####See if Alpha has an effect on Accuracy####
+##############################################
+
+AlphaVals <- rep(NA,16)
+res.vec<-rep(NA,5)
+for (k in 1:16)
+{for (i in 1:5)
+  {alpha = seq(0,1.5,0.1)[k]
+  subsample<-sample(1:800,600)
+  resetDArch(NNAlpha,resetRBMs=TRUE)
+  TrainDataAlpha <- createDataSet(data=ModDatta(alpha)[subsample,], targets=Train.Data[subsample])
+  NNAlpha <- darch(TrainDataAlpha, darch.isBin=TRUE)
+  NNAlpha <- preTrainDArch(NNAlpha, TrainDataAlpha, numEpochs = 5, numCD = 1, trainOutputLayer = F)
+  NNAlpha <- fineTuneDArch(NNAlpha, TrainDataAlpha, dataSetValid = NULL, numEpochs = 10, bootstrap = T)
+  Pred.dat.A <- round(predict(NNAlpha, newdata = X.Train[-subsample,], type = "raw"))
+  res.vec[i]=mean(Pred.dat.A!=Train.Data[-subsample]) #Error rate
+  }
+  AlphaVals[k]<-mean(res.vec)
+  }
+
+plot(x=seq(0,1.5,0.1), y=AlphaVals, main="Alpha Value vs Validation Error Rate", xlab="Alpha Value",ylab="Validation Error Rate", "l")
+BestAlphas <- AlphaVals
+
+#Check performance of model with best hyperparameters
+res.vec<-rep(NA,5)
+for (i in 1:5)
+{resetDArch(NNAlpha,resetRBMs=TRUE)
+subsample<-sample(1:800,600)
+My.Data <- rbind(ModDatta(0.9)[subsample,], ModDatta(1)[subsample,])
+My.Tar <- c(Train.Data[subsample],Train.Data[subsample])
+TrainDataAlpha <- createDataSet(data=My.Data, targets=My.Tar)
+NNAlpha <- darch(TrainDataAlpha, darch.isBin=TRUE)
+NNAlpha <- preTrainDArch(NNAlpha, TrainDataAlpha, numEpochs = 5, numCD = 1, trainOutputLayer = F)
+NNAlpha <- fineTuneDArch(NNAlpha, TrainDataAlpha, dataSetValid = NULL, numEpochs = 10, bootstrap = T)
+Pred.dat.A <- round(predict(NNAlpha, newdata = X.Test, type = "raw"))
+res.vec[i] <- mean(Pred.dat.A!=Test.Data) #Error rate
+}
+
+mean(res.vec)
+sqrt(var(res.vec))
+
+#####################################################
+####Use INLA Output as stating point for training####
+#####################################################
+
+res.vec<-rep(NA,5)
+NewL <- matrix(rep(c(0,result$summary.random$node$mean),10),nrow=65,ncol=10)
+for (i in 1:5)
+{resetDArch(NNAlpha,resetRBMs=TRUE)
+subsample<-sample(1:800,600)
+My.Data <- rbind(ModDatta(1)[subsample,], ModDatta(1)[subsample,])
+My.Tar <- c(Train.Data[subsample],Train.Data[subsample])
+TrainDataAlpha <- createDataSet(data=My.Data, targets=My.Tar)
+NNAlpha <- darch(TrainDataAlpha, darch.isBin=TRUE)
+setLayerWeights(NNAlpha,index=1)<-NewL
+NNAlpha <- preTrainDArch(NNAlpha, TrainDataAlpha, numEpochs = 5, numCD = 1, trainOutputLayer = F)
+NNAlpha <- fineTuneDArch(NNAlpha, TrainDataAlpha, dataSetValid = NULL, numEpochs = 10, bootstrap = T)
+Pred.dat.A <- round(predict(NNAlpha, newdata = X.Test, type = "raw"))
+res.vec[i] <- mean(Pred.dat.A!=Test.Data) #Error rate
+}
+
+
+mean(res.vec)
+sqrt(var(res.vec))
+
+```
