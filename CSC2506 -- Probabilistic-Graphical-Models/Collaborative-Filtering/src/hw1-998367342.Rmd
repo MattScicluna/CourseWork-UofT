@@ -33,9 +33,9 @@ knitr::opts_chunk$set(cache=TRUE)
 ```
 
 ```{r, echo=FALSE,results='hide', warning=FALSE, cache=TRUE}
-train.DF <- read.table('Data/spambase.train.txt', header=FALSE, sep=",")
+train.DF <- read.table('../Data/spambase.train.txt', header=FALSE, sep=",")
 train.DF[,"V58"] = as.factor(train.DF[,"V58"])
-test.DF <- read.table('Data/spambase.test.txt', header=FALSE, sep=",")
+test.DF <- read.table('../Data/spambase.test.txt', header=FALSE, sep=",")
 test.DF[,"V58"] = as.factor(test.DF[,"V58"])
 
 
@@ -178,7 +178,7 @@ We see that `r smallest` are the weights with the smallest values (and thus they
 
 #Question 4: Collaborative Filtering
 ```{r, echo=FALSE, warning=FALSE, cache=TRUE, fig.cap="Assessing the fit of the normal distribution with its maximum likelihood parameters to the movie ratings data. The normal density is plotted in red.", fig.height=3}
-mov.df<-read.table("Data/u.data")
+mov.df<-read.table("../Data/u.data")
 ratings<-data.frame( ratings = as.numeric(mov.df[,3]) )
 
 

@@ -1,0 +1,263 @@
+---
+output: 
+  pdf_document:
+    fig_caption: yes
+    fig_width: 4
+    fig_height: 4
+---
+
+---
+title: "CSC2506 Assignment 3"
+author: "Matthew Scicluna"
+header-includes:
+   - \usepackage{amsmath}
+date: `r Sys.Date()`
+---
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+pckgs<-c("R.matlab")
+
+func <- function(x){
+  if(!is.element(x, rownames(installed.packages())))
+  {install.packages(x, quiet=TRUE, repos="http://cran.rstudio.com/")}
+}
+
+lapply(pckgs, func)
+lapply(pckgs, library, character.only=TRUE)
+
+
+```
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE, fig.cap="Negative log likelihood of model  trained with different numbers of clusters"}
+
+source("computeRes.R")
+
+data <- readMat("../Data/a3dataFinal.mat")
+
+#Make training data
+trainDF = data.frame(data$train.data)
+IND <- colSums(trainDF!=0)>=200 #Now we need to get rid of columns with less than 200 ratings.
+trainDF <- trainDF[,IND]
+
+#Make test data
+testDF = data.frame(data$test.data)
+testDF <- testDF[,IND] #Now we need to get rid of rows with less than 200 ratings.
+
+#Create EM function
+EM_fun <- function(k, DF, iternum){
+  theta.init <- rep(1/k,k)
+  beta.init <- array( runif(n=(ncol(DF)*k*5)), dim=c(5,ncol(DF),k) )
+  Resp.init <- matrix(NA,nrow=nrow(DF),ncol=k) #Initialize responsibilities
+  llperiter <- matrix(NA,nrow=iternum,1) #Initialize count of lls
+  
+  for (j in 1:k){
+    b1<-beta.init[,,j]
+    b1 <- matrix(b1,nrow=5) / t(matrix(rep(colSums(b1),5),ncol=5))
+    beta.init[,,j] <- b1} #Normalize initial probabilities
+
+  
+  betalist <- as.list(rep(NA,(iternum+1)))
+  thetalist <- as.list(rep(NA,(iternum+1)))
+  resplist <- as.list(rep(NA,(iternum+1)))
+  betalist[[1]] <- beta.init
+  thetalist[[1]] <- theta.init
+  resplist[[1]] <- Resp.init
+  
+  for (iter in 1:iternum){
+  
+  #ESTEP
+  
+    beta.cur <- betalist[[iter]]
+    theta.cur <- thetalist[[iter]]
+    
+    resp.update <- compute_responsibility(DF, beta.cur, theta.cur)
+    
+    resplist[[(iter+1)]] <- resp.update
+
+  #MSTEP
+  beta.update <- array(NA, dim=dim(beta.cur))
+
+  theta.update <- colSums(resp.update) / nrow(resp.update) #Optimize for theta
+  
+  for (i in 1:5) #Optimize for betas
+      {rmat=DF==i
+      beta.update[i,,] <- t(rmat)%*%resp.update}
+  
+  for (j in 1:k){
+    b1<-beta.update[,,j] + 1e-32
+    b1 <- matrix(b1,nrow=5) / t(matrix(rep(colSums(b1),5),ncol=5))
+    beta.update[,,j] <- b1} #Normalize initial probabilities
+  
+    
+    
+  #compute log likelihood
+  ll = compute_ll(DF, beta.update, theta.update, resp.update)
+  
+  
+  paste("The Log Likelihood after iteration", iter,"is", ll)
+  llperiter[iter,] = ll
+  betalist[[(iter+1)]] <- beta.update
+  thetalist[[(iter+1)]] <-theta.update
+  
+  if (iter>=3){
+    if (abs(llperiter[iter]-llperiter[(iter-1)]) < 1) #Stopping critereon
+    {return(list(llperiter, theta.update, beta.update,resp.update, thetalist, betalist, resplist) )}
+    }
+  
+  }
+  return(list(llperiter, theta.update, beta.update,resp.update, thetalist, betalist, resplist) )
+  }
+
+
+
+INDX <- sample(1:nrow(trainDF), floor(0.75*nrow(trainDF)))
+trainDF2 <- trainDF[INDX,]
+validDF <- trainDF[-INDX,]
+BigObj <- lapply(1:20, EM_fun, trainDF2, 6)
+
+llpergroup <- rep(NA,20)
+for (ii in 1:20){
+  llpergroup[ii] <- compute_ll(validDF, 
+                              BigObj[[ii]][3][[1]],
+                              unlist(BigObj[[ii]][2]),
+                              compute_responsibility(validDF,BigObj[[ii]][3][[1]],unlist(BigObj[[ii]][2]))
+                                     )}
+
+barplot(-unlist(llpergroup),xlab="Number of Components", ylab="Validation -ve Log Likelihood", main="# Components vs -ve LL")
+
+```
+
+#Training a Mixture Model for Movie Ratings
+We trained a multinomial mixture model on the MovieLens data. The dataset consists of ratings of movies (1 to 5) of 843 users of 89 movies. We limited the movies to only ones with at least 200 ratings to avoid overfitting. To import the data we used the $\texttt{R.matlab}$ package. Information about the package can be found [here](https://cran.r-project.org/web/packages/R.matlab/R.matlab.pdf). We used a custom written EM algorithm to train the model since our data had missing values in it. Our model was similar to the standard multinomial EM model but with indicators added to handle the missing ratings.
+
+##Optimizing the Number of Mixture Components
+We trained the model varying the number of mixture components on a subset of the training data. We plotted the number of components in each model with the to see log likelihood of the remaining training data (the validation set). Results can be found in figure 1. We found that the model with the best validation log likelihood had 2 clusters. Surprisingly, increasing the number of components beyond this increased the negative validation data log likelihood.
+
+##Consistency of Log Likelihood Across Different Initializations
+```{r, warning=FALSE, echo=FALSE, cache=FALSE, fig.cap="Assessing the consistency of the negative log likelihood after several random restarts"}
+listy <- list(rep(NA,10))
+for (i in 1:10)
+  {BigObj2=EM_fun(5,trainDF2,100)
+  x=unlist(BigObj2[[1]])
+  listy[[i]]=min(x[!is.na(x)])}
+
+plot(-unlist(listy),xlab="Seperate Run", ylab="-ve Log Likelihood", main="-ve LL Per Run, holding K constant")
+```
+
+From figure 2 We see that the model can vary across different initializations. This is not surprising since the model is supposed to be sensative to the initial values of the betas.
+
+##Expected Complete data log likelihood as a function of EM Iteration
+
+For the model with 2 components, we plotted the negative log likelihood as a function of the number of iterations. We see that the model decreases monotonically, as is expected. The results are presented in figure 3. We note that we implemented early stopping after 6 interations to avoid overfitting.
+
+```{r, warning=FALSE, echo=FALSE, cache=FALSE, fig.cap="Expected complete (negative) data log likelihood as a function of iteration of the EM algorithm"}
+
+x=-unlist(BigObj[[2]][1])
+plot(x[!is.na(x)],xlab="Iteration Number", ylab="-ve Log Likelihood", main="-ve LL Per Iteration")
+```
+
+##Interpretation of the Mixture Components
+
+```{r, warning=FALSE, echo=FALSE, cache=FALSE}
+
+profiles<-read.table("../Data/u.user", sep="|")
+
+library(R.matlab)
+data_profiles <- readMat("../Data/Test_user_indices.mat")
+data_profiles2 <- readMat("../Data/Train_user_indices.mat")
+
+People_Profile <- profiles[data_profiles2[[1]],]
+
+clust.num = 2
+
+resp=compute_responsibility(trainDF[1:842,],BigObj[[clust.num]][3][[1]],unlist(BigObj[[clust.num]][2]))
+cluster.id <- apply(resp, 1, which.max)
+
+People_Profile2 <- cbind(People_Profile[,2:4],cluster.id)
+
+#Lets do some analysis
+datt<-matrix(NA,nrow=6,ncol=clust.num)
+
+for (mm in 1:clust.num)
+{datt[1:2,mm]<- table(People_Profile2[People_Profile2$cluster.id==mm,][,2])
+datt[3,mm]<-round(mean(People_Profile2[People_Profile2$cluster.id==mm,1]),1)
+datt[4:6,mm]<-names(sort(table(People_Profile2[People_Profile2$cluster.id==mm,3]),decreasing=TRUE)[1:3])
+}
+
+rownames(datt)<-c("Number of Females", "Number of Males","Avg Age", "Most Common Occupation","2nd Most Common Occupation","3rd Most Common Occupation")
+colnames(datt)<-1:clust.num
+
+knitr::kable(datt, caption="Demographic profile of each cluster")
+```
+
+We analyzed the demographic composition of the 2 clusters our best model. The data was made available from the MovieLens database. We analyzed number of males and females, average age, and the three most common occupations. We did not find any discernable pattern for any number of clusters. For completeness we present the results in table 1.
+
+\newpage
+
+##Dirichlet Prior
+
+We derive EM expressions to train a multinomial mixture model with a Dirichlet prior over the $\beta_{ vjk}$ parameters. $P(\beta_{jk} \mid \phi_k)= D(\beta_{jk} \mid \phi_k)$
+
+Denote the marginal density of the latent variable as $P(Z_i)=\theta_k$ and the posterior ratings distribution as $P(R_i \mid Z_i=k, \beta) = \prod_{j}\prod_{v}\beta_{vjk}^{[r_{ij}=v]} =Categorical(\beta_{vjk})$.
+
+First we compute the posterior distribution of the latent variable. This amounts to computing the responisibilities in the E step in the EM algorithm.
+
+\begin{align}
+P(Z_i =k \mid R_i, \beta, \phi, \theta) &= P(Z_i =k \mid R_i, \beta, \theta) \\
+&= \frac{P(R_i \mid Z_i=k, \beta, \theta)P(Z_i=k \mid \theta)}{\sum_m P(R_i \mid Z_i=m, \beta, \theta)P(Z_i=m \mid \theta)} \\
+&= \frac{\prod_j \prod_v \beta_{vjk}^{[r_{ij} = v]} \theta_k}{\sum_m \prod_j \prod_v \beta_{vjm}^{[r_{ij} = v]} \theta_m}
+\end{align}
+
+
+We see that this does not affect the responsibilities of the latent variable. We denote the responsibility of cluster k to data point i as $\gamma_{ik} := P(Z_i = k \mid R_i, \theta_k, \phi_k)$.
+
+We note that since the Dirichlet distribution is conjugate to the categorical distribution so we can easily compute the joint distribution of the data and the latent variable (Tu, S).
+
+\begin{align}
+P(Z_i = k,R_i \mid \phi, \theta) &= P(R_i \mid Z_i = k, \phi)P(Z_i = k \mid \theta) \\
+&=P(R_i \mid Z_i = k, \beta_{jk}) P(\beta_{jk} \mid \phi_k) P(Z_i = k \mid \theta) \\
+&=Categorical(\beta_{vjk}) D(\beta_{jk} \mid \phi_k) \theta_k \\
+&=D( [r_{ij} = v] + \phi_{vk} - 1)\theta_k
+\end{align}
+
+We now compute $L$, the Expected complete data log likelihood so we can get our $\beta$ and $\theta$ updates. Note that the Expected complete data log likelihood is exactly the observed data log likelihood (Marlin, B).
+
+\begin{align}
+L &= \sum_{i} \sum_{k} P(Z_i = k \mid R_i, \theta_k, \phi_k)log P(Z_i = k, R_i \mid \theta_k, \phi_k) \\
+&= \sum_{i} \sum_{k} \left( \sum_{v} [r_{ik}=v]P(Z_i = k \mid R_i, \theta_k, \phi_k) \right) log P(Z_i = k, R_i \mid \theta_k, \phi_k) \\
+&= \sum_{i} \sum_{k} \gamma_{ik} log P(Z_i = k, R_i \mid \theta_k, \phi_k) \\
+&= \sum_{i} \sum_{k} \gamma_{ik} \left( log\theta_k +  log D([r_{ij} = v] + \phi_{vk} - 1) \right) \\
+&= \sum_{i} \sum_{k} \gamma_{ik} \left( log\theta_k +  \sum_j \left( \sum_v [r_{ij} = v] + \phi_{vk} -1 \right) log \beta_{vjk} -logB(\phi_k) \right)
+\end{align}
+
+To solve for $\theta$ we differentiate $L$ and apply a Lagrange multiplier to ensure the contraints are obeyed:
+
+\begin{align}
+\frac{\partial}{\partial \theta_k} L + \lambda \left( \sum_k \theta_k - 1 \right) &= \frac{\sum_i \gamma_{ik}}{\theta_k} + \lambda = 0 \\
+&\Rightarrow \lambda \theta_k = \sum_i \gamma_{ik} \\
+&\Rightarrow \theta_k^{MAP} = \frac{\sum_i \gamma_{ik}}{\sum_m \sum_i \gamma_{im}}
+\end{align}
+
+Note that (15) follows from (14) upon normalizing $\theta_k$.
+
+To solve for $\beta_{vjk}$ we again differentiate $L$ and apply the appropriate Lagrange multiplier:
+
+\begin{align}
+& \frac{\partial}{\partial \beta_{vjk}} L + \lambda \left( \sum_v \beta_{vjk} - 1 \right) = 0 \\
+&\Rightarrow \frac{\partial}{\partial \beta_{vjk}} \sum_{i} \sum_{k} \gamma_{ik} \left( \sum_j \left( \sum_v [r_{ij} = v] + \phi_{vk} -1 \right) log \beta_{vjk} \right) + \lambda = 0 \\
+&\Rightarrow \frac{\sum_i \gamma_{ik} [r_{ij} = v] + \phi_{vk} -1}{\beta_{vjk}} = \lambda \\
+&\Rightarrow \beta_{vjk}^{MAP} = \frac{1}{\lambda} \left(  \sum_i \gamma_{ik} [r_{ij} = v] + \phi_{vk} -1 \right) \\
+&\Rightarrow \beta_{vjk}^{MAP} = \frac{\sum_i \gamma_{ik} [r_{ij} = v] + \phi_{vk} -1}{\sum_m \sum_i \gamma_{ik} [r_{ij} = m] + \sum_m \phi_{mk} - M} 
+\end{align}
+
+Again we see that (20) follows from (19) by normalization of $\beta_{vjk}$. From this update formula We can see that adding the Dirichlet prior amounts to adding "pseudo-counts" to the beta. This is beneficial since it acts as a regularizer and ensures that the computations do not become numerically stable (i.e. ensuring that the denominator doesn't vanish to zero).
+
+\newpage
+
+##References
+
+[1] Murphy, K. Machine Learning: A Probablistic Perspective. The MIT Press, Cambridge, 2012.
+
+[2] Marlin, B. Collaborative Filtering: A Machine Learning Perspective (Masters Thesis), 2004.
+
+[3] Tu, S. [The Dirichlet-Multinomial and Dirichlet-Categorical models for Bayesian inference](http://www.cs.berkeley.edu/~stephentu/writeups/dirichlet-conjugate-prior.pdf).
