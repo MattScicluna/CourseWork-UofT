@@ -11,8 +11,8 @@ I learned the following things:
 
 ## Software Used
 This project was done in R. I used the following packages:
-* [glmnet](https://cran.r-project.org/web/packages/glmnet/glmnet.pdf) package to get a $l^2$ regularized logistic regression function.
-* [Caret](https://cran.r-project.org/web/packages/caret/caret.pdf) package contained the \texttt{train} function which we used to train the regularization hyperparameter (lambda) using 5 fold cross validation.
+* [glmnet](https://cran.r-project.org/web/packages/glmnet/glmnet.pdf) package to get a l2 regularized logistic regression function.
+* [Caret](https://cran.r-project.org/web/packages/caret/caret.pdf) package contained the _train_ function which we used to train the regularization hyperparameter (lambda) using 5 fold cross validation.
 
 ## How to Use
 * knit hw1-998367342.Rmd in RStudio to use the assignment.
