@@ -1,0 +1,443 @@
+---
+output: 
+  pdf_document:
+    fig_width: 4
+    fig_height: 4
+    fig_caption: true
+---
+---
+title: "STA2201 Assignment 1"
+author: "Matthew Scicluna"
+date: "`r Sys.Date()`"
+---
+
+#Short Answer
+
+## A Simulation Study
+
+###On the Coverage Probabilities
+We simulated 100 data sets by simulating random draws from a poisson distribution and fitting the correct model to the data. We used the point estimate of the coefficient of x along with its standard error to compute a 2 standard error confidence interval and computed the coverage probability of this interval. We found that it was 0.96.
+
+The coverage probability is quite high, however computing it requires knowing beforehand the parameter value, so this approach is pretty pointless.
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+
+options(warn=-1)
+
+set.seed(2015) #to make research reproducible
+
+suppressMessages(library(lmtest))
+
+make.data.set <- function(a)
+{x = seq(-10, 10, len=40)
+x2 = x*0.2
+off = rep(c(1,-1), c(25, length(x)-25))
+y = rpois(length(x), exp(off + 0.5 +0.2*x))
+fit1 = glm(y~x+offset(off),family="poisson")
+fit2 = glm(y~offset(off)+offset(x2),family='poisson')
+
+coeff = summary(fit1)[['coefficients']][2,1:2]
+lrtstat =invisible(lrtest(fit1,fit2)$Chisq[2])
+
+CIU = coeff[1]+2*coeff[2]
+CIL = coeff[1]-2*coeff[2]
+
+return(list(coeff[1], CIL, CIU, lrtstat))}
+
+datta = sapply(rep(0,100), make.data.set)
+
+datta = t(apply(datta, 2, unlist))
+
+#We now compute the coverage probability of a 2 standard error confidence interval for the
+#coefficient on x. Firstly to get the 2 standard error confidence interval we compute the standard error.
+
+mean(datta[,2]<0.2 & datta[,3]>0.2) #computes Coverage probability
+
+```
+
+###Approximation by a Normal Distrubution
+We now check whether the coefficient for x can be approximated by a Normal distribution centred on 0.2.
+
+```{r, echo=FALSE,warning=FALSE, fig.cap='Checking if the distribution of the estimates can be fit to a normal distribution', fig.height=3}
+library("ggplot2", quietly=TRUE)
+MyData<-data.frame(x = datta[,1])
+std = sd(MyData$x)
+ggplot(MyData, aes(x=x)) + 
+    geom_histogram( aes(y=..density..),
+                    breaks=seq(0.15,0.25,by=0.0075), 
+                    colour="black", 
+                    fill="white",
+                    alpha=0.5) +
+  stat_function(fun=dnorm, args=list(mean=0.2, sd=std), colour="red", fill="#FF6666", geom="ribbon", alpha=0.2,
+                mapping = aes(ymin=0,ymax=..y..)) +
+                labs(title="Beta Hats Fit to Normal Distribution") +
+                labs(x="Beta Hat Estimate", y="Count")
+```
+
+```{r,echo=FALSE, results='hide'}
+shapiro.test(MyData$x)
+```
+
+Note that for the variance of this distribution we used `r round(std,2)` -- the standard error of the coefficient in place of its (unknown) variance. This appears to be a reasonable fit. We further did a Shapiro-Wilks test of Normality for which we rejected the null hypothesis that the data did not come from a Normally distribution population with p>0.1. 
+
+###Distribution of the Likelihood Ratio Statistics
+We now calculate 100 likelihood ratio statistics for testing if the x coefficient is 0.2. We can see that this appears roughly chi-squared with one degree of freedom, which is what we would expect if the null hypothesisthat we are testing were true. In this case our null hypothesis is in fact true -- that the true value of x coefficient is 0.2.
+
+```{r, echo=FALSE, results='hide', warning=FALSE, fig.cap="Fitting LRT statistics to a Chi Squared Distribution with 1 df", fig.height=3}
+LRT <- data.frame(x=datta[,4])
+
+ggplot(data=LRT, aes(x=x))+
+  geom_histogram(colour="black",fill="white", binwidth=0.15, aes(y=..density..)) + ylim(0, 1) +
+  stat_function(fun=dgamma, args=list(shape=1/2, scale=2), colour="red", fill="#FF6666", geom="ribbon", alpha=0.2,
+                mapping = aes(ymin=0,ymax=..y..)) +
+  labs(title="Fitting LRT statistics") +
+  labs( x="LRT Statistic", y="Frequency")
+
+```
+
+##Distribution Functions
+
+We now derive the parameters for each distribution which will result in random variables with mean
+2 and variance 3.
+
+###Parameter Derivations
+
+_Zero-inflated Poisson_
+
+The zero-inflated Poisson distribution has the following mass function:
+$$P (y_j = 0) = \pi + (1 - \pi) e^{-\lambda}$$
+$$P (y_j = h_i) = (1 - \pi) \frac{\lambda^{h_i} e^{-\lambda}} {h_i!},\qquad h_i \ge 1$$
+
+The mean is $(1-\pi) \lambda$, and the variance is   $\lambda (1-\pi) (1+\lambda \pi)$.
+From the above see that $$\lambda (1-\pi) (1+\lambda \pi) = 3 \Rightarrow 2 (1+\lambda \pi) = 3 \Rightarrow \lambda = \frac{1}{2 \pi}$$
+And finally we substitute this into the equation for the mean to get $\pi = \frac{1}{5}$ and $\lambda = \frac{5}{2}$
+
+\newpage
+
+_Gamma_
+
+The Gamma distribution has the following density:
+$$f(x;\alpha,\beta) =
+\begin{cases}
+\frac{\beta^\alpha}{\Gamma(\alpha)} x^{\alpha \,-\, 1} e^{- \beta x } & x\geq0 ,\\
+0 & x<0,
+\end{cases}$$
+
+It has the familiar formulas $\alpha \beta$ and $\alpha \beta^2$ for mean and variance respectively. Note that $\alpha$ is the shape parameter and $\beta$ is the rate (inverse of the scale) parameter.
+Clearly $$\alpha \beta = 2 \Rightarrow \alpha = \frac{2}{\beta} \Rightarrow 2 \beta = 3$$
+And after some simple algebraic manipulations we have that $\alpha = \frac{4}{3}$ and $\beta = \frac{3}{2}$
+
+
+_Weibull_
+
+The Weibull distribution has the following density:
+
+$$f(x;\lambda,k) =
+\begin{cases}
+\frac{k}{\lambda}\left(\frac{x}{\lambda}\right)^{k-1}e^{-(x/\lambda)^{k}} & x\geq0 ,\\
+0 & x<0,
+\end{cases}$$
+
+The mean and vairance for a Weibull distribution is $\lambda \Gamma(1+1/k)$ and $\lambda^2\left(\Gamma\left(1+\frac{2}{k}\right) - \left(\Gamma\left(1+\frac{1}{k}\right)\right)^2\right)$ respectively.
+
+```{r, echo=FALSE, results='hide', warning=FALSE}
+library('nleqslv')
+fn = function(x)
+{ lambda = x[1]
+  k = x[2]
+  f1 = gamma(1 + 2/k)*lambda^2 - 7
+  f2 = lambda*gamma(1 + 1/k) - 2
+  return(c(f1,f2))}
+
+WeibVals = round(nleqslv(c(1,1), fn, method='Broyden')$x,2)
+```
+
+Rather than analytically solve these equations for the parameters we can use a numeric optimizer. We did this in R using the $\texttt{nleqslv}$ function in the [nleqslv](https://cran.r-project.org/web/packages/nleqslv/nleqslv.pdf) package. We got $\lambda$ = `r WeibVals[1]` $k$ = `r WeibVals[2]`.
+
+_Log-Normal_
+
+The Log Normal distribution has the following density:
+
+$$f (x ; \mu, \sigma) = 
+\begin{cases}
+\frac{1}{x\sigma\sqrt{2\pi}}\ e^{-\frac{\left(\ln x-\mu\right)^2}{2\sigma^2}}& x\geq0 ,\\
+0 & x<0,
+\end{cases}$$
+
+The mean and variance of the Log-Normal distribution are $e^{\mu+\sigma^2/2}$ and $(e^{\sigma^2}\!\!-1) e^{2\mu+\sigma^2}$ respectively. Equating these to 2 and 3 we solve for $\mu$ and $\sigma$ in the following way.
+
+$$e^{\mu+\sigma^2/2} = 2 \Rightarrow \ln4 = 2\mu + \sigma^2 \Rightarrow e^{\sigma^2}-1)4 = 3 \Rightarrow e^{\sigma^2}-1) = \frac{3}{4} \Rightarrow \sigma^2 = \ln \frac{7}{4}$$
+
+and
+
+$$
+\ln4 = 2\mu + \ln \frac{7}{4} \Rightarrow \mu = \frac{\ln \frac{16}{7}}{2}
+$$
+
+\newpage
+
+_Negative Binomial_
+
+The negative Binomial distribution has the following mass function:
+
+$$P(X = k) = {k+r-1 \choose k}\cdot (1-p)^r p^k,\! \ k = 0, 1, 2, ... $$
+
+The mean and variance of a Negative Binomial random variable is $\frac{pr}{1-p}$ and $\frac{pr}{(1-p)^2}$ respectively.
+And setting the $$\frac{pr}{1-p} = 2 \Rightarrow \frac{2}{1-p} = 3 \Rightarrow p = \frac{1}{3}$$
+And we substitute this into the equation for the mean to get
+$$2 = \frac{\frac{1}{3} r}{1- \frac{1}{3}} \Rightarrow \frac{r}{2} = 2 \Rightarrow r = 4$$
+
+###A plot of all the distributions together
+
+A plot of all the distributions together can be found in figure 3.
+
+```{r, echo=FALSE, warning=FALSE, fig.cap="A Plot of each of the five distributions mentioned in this report", fig.width=5, fig.height=3}
+
+#this gets the density of the zero-inflated poisson
+dZeroInfPois <- function(x, Pi, Lambda){ 
+  if (Pi > 1 | Pi < 0){return("Pi should be between 0 and 1 !")}
+  if (x == 0)
+    {return(Pi + (1-Pi)*exp(-Lambda))}
+  else
+    {return( (1-Pi)*dpois(x,Lambda) )}
+}
+
+#this gets the density for a Log-Normal RV
+
+dLogNorm <- function(x, Mu, Sigma){
+  return(dnorm(log(x),Mu,Sigma))}
+
+df <- data.frame(nums = seq(0,8,1), zip = sapply(seq(0,8,1),dZeroInfPois, 1/5, 5/2) )
+
+ggplot(df, aes(x = nums,y = zip)) +
+geom_point(size=3, aes(colour = "0 Infl. Poisson")) +
+stat_function(fun = dLogNorm, args = list( log(16/7)/2 ,log(7/4)), fill="blue", geom="ribbon", alpha=0.2, mapping = aes(ymin=0,ymax=..y.., colour = "Log Normal")) +
+stat_function(fun = dgamma, args = list(shape = 4/3, scale = 3/2), fill="red", geom="ribbon", alpha=0.2, mapping = aes(ymin=0,ymax=..y.., colour="Gamma")) +
+stat_function(fun = dweibull, args = list(scale=WeibVals[1], shape=WeibVals[2]), fill="purple", geom="ribbon", alpha=0.2, mapping = aes(ymin=0,ymax=..y.., colour = 'Weibull')) +
+stat_function(geom="point", n=9, fun=dnbinom, args=list(4, 2/3), size=3, aes(colour="Neg Binomial")) +
+scale_colour_manual("Density", values = c("orange","red", "blue", "green", "purple")) +
+  labs(title="Probability Density Functions") +
+                labs(x="X Values", y="P(X)")
+
+```
+
+###99% Upper Quantiles for each distribution
+
+```{r, echo=FALSE, warning=FALSE}
+qGamma = qgamma(0.99,shape = 4/3,scale = 3/2)
+qWeib = qweibull(0.99,WeibVals[2],WeibVals[1])
+qNBin = qnbinom(0.99, 4, 2/3) 
+qLNorm = exp(qnorm(0.99,log(16/7)/2,log(7/4)))
+
+
+vals = sapply( seq(0,20,1), dZeroInfPois, 1/5, 5/2)
+i=1
+while (sum(vals[1:i]) < 0.99) #I'm just doing this by trial and error...
+  {i = i + 1}
+
+qZIPois = i
+
+```
+
+The 99% upper quantiles for each distribution are as follows:
+
+* Gamma = `r round(qGamma,2)`
+* Weibull = `r round(qWeib,2)`
+* Negative Binomial = `r round(qNBin,2)`
+* Log Normal = `r round(qLNorm, 2)`
+* Zero Inflated Poisson = `r round(qZIPois, 2)`
+
+\newpage
+
+###Simulations drawn from each distribution
+
+```{r, warning=FALSE, echo=FALSE}
+
+#This generates values from the zero-poisson distribution
+rZeroInfPois <- function(Pi, Lambda){ 
+  if (Pi > 1 | Pi < 0){return("Pi should be between 0 and 1 !")}
+  ProbOf0 <- Pi + (1-Pi)*exp(-Lambda)
+  if (runif(1) <= ProbOf0)
+    {return(0)}
+  else
+    {val = 0
+    while (val == 0)
+      {val=rpois(1,Lambda)}
+       return(val)
+     }
+}
+
+
+Gamma = rgamma(20,shape = 4/3,scale = 3/2)
+Weibull = rweibull(20,WeibVals[2],WeibVals[1])
+NegBinomial = rnbinom(20, 4, 2/3) 
+LogNormal = exp(rnorm(20,log(16/7)/2,log(7/4)))
+ZIP = sapply(rep(1/5,20),rZeroInfPois, 5/2)
+
+df = data.frame( Gamma, Weibull, NegBinomial, LogNormal, ZIP )
+tab = round( rbind( colMeans(df),apply(df, 2, var) ), 2)
+colnames(tab) <- c('Gamma', "Weibull", "Neg Binomial", "Log Normal", "0 Infl. Poisson")
+rownames(tab) <- c("Sample Mean", "Sample Variance")
+knitr::kable(tab, cap="Sample means of 20 random draws from each distribution")
+
+```
+
+
+We can see that the means and variances are roughly where we would expect them to be.
+
+##Are Fertile Women Dangerous to Men?
+
+Maybe, according to a dataset from the [Faraday](https://cran.r-project.org/web/packages/faraway/faraway.pdf) package. Fruitflies were forced to cohabilitate with either one or many women, either fertile or pregnant (unwilling to mate). The lifetime (in days) of 125 fruitflies were measured controlling for thorax length (which is known to be correlated with lifespan). The mean lifespan for each group is listed in the following table:
+
+```{r, echo=FALSE, warning=FALSE}
+library(faraway)
+data('fruitfly', package='faraway')
+levels(fruitfly$activity) <- c("Solitary", "1 Preg Fly", "1 Vig Fly", "8 Preg Flies", "8 Vig Flies") #To change the confusing factor levels
+
+sumdat = aggregate(longevity~activity, fruitfly, mean )
+sumdat = round(sumdat[,2])
+sumdat = as.matrix(sumdat,5)
+colnames(sumdat)<-c("Longevity (Days)")
+rownames(sumdat)<- c("Isolated","With 1 Pregnant Fly","With 1 Virgin Fly","With 8 Pregnant Flies","With 8 Virgin Flies")
+knitr::kable(sumdat, cap="Marginal means of each fruit fly group")
+```
+
+After we fit a Gamma Regression model to properly control for the effect of thorax size, we found that flies cohabitating with one virgin fly lived 11% less days than flies in isolaton, and that flies cohabilitating with 8 virgin flies had their lifetimes reduced by a third! This can be inferred from the exponentiated parameter estimates given in table 3. If you are curious about how good a fit our Gamma regression model was to the data,we present the empirical distribution along with the model fit in figure 4.
+
+
+```{r, echo=FALSE, warning=FALSE}
+mod=glm(longevity~thorax + activity, data=fruitfly ,family=Gamma(link='log'))
+coeffdat = round(summary(mod)$coef,2)
+coeffdat[,1] = round(exp(coeffdat[,1]),2) #To use a more natural Scale
+colnames(coeffdat) <- c("Exp. Estimate","Std. Error","t value","P-Value") 
+rownames(coeffdat) <- c("Intercept" ,"Thorax Length", "With 1 Pregnant Fly","With 1 Virgin Fly","With 8 Pregnant Flies",
+"With 8 Virgin Flies")
+knitr::kable(coeffdat, cap="Estimated parameters from the Gamma GLM model of the fruitflies")
+```
+If there was one takaway from all this, perhaps it can best be said in the immortal adage of Paracelsus: *It's the dose that makes the poison* !
+
+```{r, echo=FALSE, warning=FALSE, fig.cap="Assessing if the Gamma GLM (shown in red) was a good fit to the fly data", fig.height=3}
+shape = 1/summary(mod)$dispersion
+scale = mean(fruitfly$longevity)/shape
+
+ggplot(fruitfly, aes(x=longevity)) +
+  geom_bar(binwidth = 5, colour="black", fill="white",aes(y=..density..)) +
+  stat_function(fun=dgamma, args = list(shape = shape, scale = scale), colour="red",fill="red", geom="ribbon", alpha=0.2,  mapping = aes(ymin=0,ymax=..y..)) + 
+  labs(title="Assessing the fit of the GLM model") +
+                labs(x="Longevity (Days)", y="Density")
+```
+
+\newpage
+
+
+##The American National Youth Tobacco Survey and the Two Statistical Cultures
+In 2001 Leo Breiman wrote a paper about what he saw as the two prevalent cultures growing in the statistics discipline. Amazingly, this commentary has held true over a decade later. We use our recent analysis of the 2014 American National Youth Tobacco Survey to demonstrate the truth of Breimans commentary.
+
+Our analysis was twofold in its aims-- mainly to compare certain demographic effects on smoking habits and secondly to quantify these effects. Specifically, our research hypothesis was to investigate the effect of race on the habit of regularly chewing tobacco and the effect of sex of youth trying hookah. 
+
+For the primary question we used two logistic regression models; one predicting the odds of chewing tobacco regularly and the other predicting the odds of trying a Hookah at least once. Model interpretability (simplicity) was crucial here, since the models were built to answer specific research questions. Breiman rallies against simplicity in favor of complex models with greater predictive ability. His opinion on this matter is no doubt based on his experience as a consultant. These jobs did not seem to require him to answer research questions concerning understanding undlerlying mechanisms of the response variable, only having to predict it. The goals in our study are quite different, as we wish to know _what_ causes youth smoking habits.
+
+In Breimans paper he argues against fitting data to a model, as the assumptions of that model are taken as true and any violations of model assumptions can have serious repurcussions. We note that the logistic regression model we used has far less assumptions then, say, an OLS would have. It does not assume linearity between dependant and independant variables (only linearity between log odds and covariates). There is no normality or homoscedasticity assumptions for the residuals. Despite this, Breiman would have a point to argue that there is no good way to know whether the linearity assumption holds (he rejects goodness-of-fit tests).
+
+If we had used an algorithmic model like a neural net, random forest or a SVM instead we could avoid this linearity assumption, but at the sacrifice of model interpretability. The algorithmic model may be able to be more powerful a predictor, but would not help identify the specific causes of smoking use among youth. This would defeat the purpose of what we were trying to do, since predicting smoking rates in youth was not the goal: analyzing its causality was. Despite this, breiman would argue that We could have teased some causailty from a smartly prunned random forest or related algorithmic method to determine relationships between the variables. He himself demonstrates that it can be done in part 11 of his paper. We argue that any algorithmic model simple enough to be interpretable should not be any more powerful than a much simpler parametric model (like logistic regression), which has a much more natural and widely accepted interpretation (the exponentiated coefficients represent changes in odds). 
+
+Breiman mentions that utilizing cross validation and incorperating averages of different models with perturbed training sets can capture more aspects of the data. We again acknowlege that this may have improved our model, provided we were looking to maximize the models predicibility. But we were not, and so his suggestions for improving our models seem needlessly complicated and not necessary to answer the research question we explored.
+
+\pagebreak
+
+#Section 2: Report
+
+```{r, echo=FALSE}
+
+load("smoke.RData")
+
+Smoke_Hookah_Or <- rep(NA,nrow(smoke))
+
+Smoke_Hookah_Or[!smoke[,145]] <- "Never"
+Smoke_Hookah_Or[smoke[,145]] <- "Once"
+Smoke_Hookah_Or[smoke[,154]] <- "Regularly"
+
+Chew_Tob_or <- rep(NA,nrow(smoke))
+Chew_Tob_or[!smoke[,142]] <- "Never"
+Chew_Tob_or[smoke[,142]] <- "Once"
+Chew_Tob_or[smoke$chewing_tobacco_snuff_or] <- "Regularly"
+                
+SmokeDF <- data.frame(Age=smoke$Age, 
+                      Sex=smoke$Sex,
+                      Grade = smoke$Grade,
+                      Race = smoke$Race,
+                      Rural = smoke$RuralUrban, 
+                      Smoke_Hookah_Or = factor(Smoke_Hookah_Or),
+                      Chew_Tob_or = factor(Chew_Tob_or),
+                      Ever_Hooka = smoke[,145],
+                      Reg_Chew = smoke$chewing_tobacco_snuff_or
+                    )
+mod1 <- glm(Reg_Chew ~ Age + Sex + Race + Rural, data=SmokeDF,family="binomial")                                              
+
+mod2 <- glm(Ever_Hooka ~ Age + Sex + Race + Rural, data=SmokeDF, family="binomial")
+
+vec = SmokeDF$Race=="hispanic"|SmokeDF$Race=="black"|SmokeDF$Race=="white"
+mod3 <- glm(Reg_Chew ~ Age + Sex + Race + Rural, data=SmokeDF[vec,],family="binomial")                                              
+```
+
+
+##Summary
+We analyzed the results of the 2014 American National Youth Tobacco Survey to look for indicators that correlated with inceases in the odds of chewing tobacco regularly or trying a hookah. We found that white people were the most likely to chew tobacco followed by hispanics and black people, who chewed tobacco regularly at half the rate and 1/5th of the rate respectively. Perhaps not surprisingly, older males living in rural areas had the largest odds of chewing tobacco regularly.
+
+Unlike chewing tobacco habits, When it came to the odds of people using a Hookah at least once, the difference between men and women were not statistically different. Like before, older people were more likely to try using a Hookah, and black people were less likely. Unlike before, hispanics and urban dwellers were actually significantly more likely to try Hookah, the reverse of what we saw with trends in chewing tobacco.
+
+---
+
+##Introduction
+We analyzed the 2014 American National Youth Tobacco Survey using an R version of the dataset available at [pbrown.ca](http://pbrown.ca/teaching/astwo/data/). The original dataset was released by the Center for Disease Control. The data was collected from a survey administered to 258 Schools across the United States. We wanted to explore the relationship between demographics and smoking habits. Mainly we explored whether the odds of Regular use of chewing tobacco, snuff or dip increased with race. Note that the survey defined chewing tobacco regularly to be at least once in the last month. We also explored whether the probability of having used a hookah or waterpipe at least once was affected by gender. For both of these analysis we controlled for age and whether the respondant was from a rural area or an urban one. Additionally, we quantified how the use of chewing tobacco changes with age, sex, and ethnic group.
+
+##Methods
+For our analysis we used a model that included the three aformentioned races, Asians, Natives and Pacific islanders. Our primary research question did not include these races, but we found our model did not change significantly upon the removal of these races from the data set, so we kept them in for greater generalizability. The model with the restricted dataset in included in the code for this document for the readers interest.
+
+Being that we seeked to model probabilities, it was a natural choice to use the logistic regression model. We considered the following model for each of the aforementioned analysis:
+
+$$\ln  Odds = \beta_0 + \beta_1 x_{Age} + \beta_2 I_{Female} + \beta_3 I_{Black} + \beta_4 I_{Hisp} + \beta_5 I_{Asian} + \beta_6 I_{Native} + \beta_7 I_{Pacif} + \beta_8 I_{Rural}$$
+
+Where $Odds$ was either the Odds of regularly chewing Tobacco or the odds of ever using a Hookah,depending on context. Specifically, we tested whether race was a significant predictor of chewing tobacco: $H_{0} \colon \beta_3 = \beta_4 = \beta_5 = \beta_6 = \beta_7 = 0$ and we tested whether gender was a significant predictor of using a hookah: $H_{0} \colon \beta_2 = 0$. Finally, we compare the values of the $\beta_i$ coefficients from each model to see what has the largest effect in predicting chewing tobacco and hookah use respectively.
+
+\pagebreak
+
+##Results
+
+```{r, warning=FALSE, echo=FALSE}
+Tab1 <- round(summary(mod1)$coefficients, 2)
+Tab2 <- round(summary(mod2)$coefficients, 2)
+Tab1[,1] <- round(exp(Tab1[,1]),2)
+Tab2[,1] <- round(exp(Tab2[,1]),2)
+colnames(Tab1)<- c("Exp. Estimate","Std. Error","z value","P-Value")
+colnames(Tab2)<- c("Exp. Estimate","Std. Error","z value","P-Value")
+rownames(Tab1) <- c("Intercept","Age","Female","Black","Hispanic","Asian","Native","Pacific","Rural")
+rownames(Tab2) <- rownames(Tab1)
+
+knitr::kable(anova(aov(mod1)), digits=2, cap="ANOVA summary table for modelling odds of regular use of chewing tobacco")
+```
+
+From the ANOVA table from our first model, we can see that race was a significant predictor of chewing tobacco use, even after controlling for age, sex and whether participant was from a rural location. We also found that the rates of chewing tobacco were significantly different between ages, the sexes and between youth living in rural areas versus urban ones.
+
+```{r, warning=FALSE, echo=FALSE}
+knitr::kable(Tab1, cap="Modeling odds of regular use of Chewing tobacco")
+```
+
+After looking at the exponentiated coefficients of our model (which represents the odds ratio increase/decrease between groups) we see that black people and hispanics are about 20 percent and half as likely to chew tobacco as whites respectively. This is after controlling for all the aforementioned covariates. Additionally, we can see that women where only 20 percent as likely to chew tobacco as men, and that the chances someone regularly chews tobacco increases 34 percent for each year of life. Not surprisingly, we see that people from rural areas are over 2.5 times more likely to chew tobacco, when compared to their urban dwelling counterparts.
+
+\pagebreak
+
+```{r, warning=FALSE, echo=FALSE}
+knitr::kable(Tab2, cap="Modeling odds of ever using a hookah")
+```
+
+
+We found similar trends in age and trying a Hookah as with age and chewing tobacco habits. Older people were about likely 30 percent more likely to try a Hookah  for each year of life. Black people were half as likely and hispanics about 40 percent more likely than whites to trying Hookah.  Also, the habit of trying Hookah among rural dwellers was the reverse the the trend of rural dwellers chewing tobacco, with 64% as many rural respondants trying Hookah as Urbanites. This may be because cities tend to be more multicultural than rural regions, and the Hookah is an import of the middle east.
+
+
+Finally, we see that the odds of using a hookah are about 4 percent higher for women then men, but this difference is not statistically significant (p = 0.32) and so we cannot conclude that, controlling for age, race and geographic location, women and men are no more likely to use a hookah.
+
+
+
+##Appendix
+This file was made using the R markdown package. All code used in this paper can be accessed from within the code blocks of the markdown document.
