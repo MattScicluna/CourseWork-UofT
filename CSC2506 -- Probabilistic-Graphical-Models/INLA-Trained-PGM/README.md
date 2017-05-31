@@ -19,11 +19,11 @@ I learned the following things:
 ## Software Used
 * The report was written in RMarkdown and all computations were done in R.
 * We used the following R packages:
-- [INLA](http://www.r-inla.org/) to use INLA.
-- [RandomFields](https://cran.r-project.org/web/packages/RandomFields/RandomFields.pdf) to train Gaussian MRFs.
+	- [INLA](http://www.r-inla.org/) to use INLA.
+	- [RandomFields](https://cran.r-project.org/web/packages/RandomFields/RandomFields.pdf) to train Gaussian MRFs.
 
 ## How to Use
-* Run ProjBackup.Rmd to do the computations and generate the figures.
-* Run FinalPaper.tex to generate report.
+* Run ```ProjBackup.Rmd``` to do the computations and generate the figures.
+* Run ```FinalPaper.tex``` to generate report.
 
 
